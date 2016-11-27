@@ -1388,6 +1388,7 @@ class ByPy(object):
 		cacerts = None,
 		rapiduploadonly = False,
 		mirror = None,
+		resumedl_revertcount = 1,
 		verbose = 0, debug = False,
 		configdir = ConfigDir,
 		requester = RequestsRequester,
@@ -1470,6 +1471,7 @@ class ByPy(object):
 			self.__ondup = 'O' # O - Overwrite* S - Skip P - Prompt
 		self.__followlink = followlink;
 		self.__rapiduploadonly = rapiduploadonly
+		self.__resumedl_revertcount = resumedl_revertcount
 
 		# TODO: properly fix this InsecurePlatformWarning
 		checkssl = False
@@ -2910,10 +2912,14 @@ try to create a file at PCS by combining slices, having MD5s specified
 
 			if self.__resumedownload and \
 				self.__compare_size(self.__current_file_size, self.__remote_json) == 2:
-				# revert back at least one download chunk
-				pieces = self.__current_file_size // self.__dl_chunk_size
-				if pieces > 1:
-					offset = (pieces - 1) * self.__dl_chunk_size
+				if self.__resumedl_revertcount < 0:
+					if self.__current_file_size:
+						offset = self.__current_file_size
+				else:
+					# revert back at least self.__resumedl_revertcount download chunk, default: one
+					pieces = self.__current_file_size // self.__dl_chunk_size
+					if pieces > self.__resumedl_revertcount:
+						offset = (pieces - self.__resumedl_revertcount) * self.__dl_chunk_size
 		elif os.path.isdir(localfile):
 			if not self.shalloverwrite("Same-name directory '{}' exists, "
 				"do you want to remove it? [y/N]".format(localfile)):
@@ -4327,6 +4333,7 @@ def getparser():
 	parser.add_argument(CaCertsOption, dest="cacerts", help="Specify the path for CA Bundle [default: %(default)s]")
 	parser.add_argument("--mirror", dest="mirror", default=None, help="Specify the PCS mirror (e.g. bj.baidupcs.com. Open 'https://pcs.baidu.com/rest/2.0/pcs/manage?method=listhost' to get the list) to use. [default: " + PcsDomain + "]")
 	parser.add_argument("--rapid-upload-only", dest="rapiduploadonly", action="store_true", help="only upload large files that can be rapidly uploaded")
+	parser.add_argument("--resume-download-revert-back", dest="resumedl_revertcount", default=1, metavar='RCOUNT', help="Revert back at least %(metavar)s download chunk(s) and align to chunk boundary when resuming the download. A negative value means NO reverts. [default: %(default)s]")
 
 	# support aria2c
 	parser.add_argument("--downloader", dest="downloader", default="", help="downloader to use (use python if not specified). valid values: {} [default: %(default)s]".format(Downloaders))
@@ -4436,6 +4443,7 @@ def main(argv=None): # IGNORE:C0111
 					cacerts = args.cacerts,
 					rapiduploadonly = args.rapiduploadonly,
 					mirror = args.mirror,
+					resumedl_revertcount = args.resumedl_revertcount,
 					downloader = args.downloader,
 					downloader_args = args.downloader_args,
 					verbose = args.verbose, debug = args.debug)
