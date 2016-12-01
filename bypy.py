@@ -4318,14 +4318,14 @@ def getparser():
 	parser.add_argument("-v", "--verbose", dest="verbose", default=0, action="count", help="set verbosity level [default: %(default)s]")
 
 	# program tunning, configration (those will be passed to class ByPy)
-	parser.add_argument("-r", "--retry", dest="retry", default=5, help="number of retry attempts on network error [default: %(default)i times]")
-	parser.add_argument("-q", "--quit-when-fail", dest="quit", default=False, help="quit when maximum number of retry failed [default: %(default)s]")
-	parser.add_argument("-t", "--timeout", dest="timeout", default=60, help="network timeout in seconds [default: %(default)s]")
+	parser.add_argument("-r", "--retry", dest="retry", default=5, type=int, help="number of retry attempts on network error [default: %(default)i times]")
+	parser.add_argument("-q", "--quit-when-fail", dest="quit", default=False, type=str2bool, help="quit when maximum number of retry failed [default: %(default)s]")
+	parser.add_argument("-t", "--timeout", dest="timeout", default=60.0, type=float, help="network timeout in seconds [default: %(default)s]")
 	parser.add_argument("-s", "--slice", dest="slice", default=DefaultSliceSize, help="size of file upload slice (can use '1024', '2k', '3MB', etc) [default: {} MB]".format(DefaultSliceInMB))
 	parser.add_argument("--chunk", dest="chunk", default=DefaultDlChunkSize, help="size of file download chunk (can use '1024', '2k', '3MB', etc) [default: {} MB]".format(DefaultDlChunkSize // OneM))
-	parser.add_argument("-e", "--verify", dest="verify", action="store_true", default=False, help="verify upload / download [default : %(default)s]")
+	parser.add_argument("-e", "--verify", dest="verify", action="store_true", help="verify upload / download [default : %(default)s]")
 	parser.add_argument("-f", "--force-hash", dest="forcehash", action="store_true", help="force file MD5 / CRC32 calculation instead of using cached value")
-	parser.add_argument("--resume-download", dest="resumedl", default=True, help="resume instead of restarting when downloading if local file already exists [default: %(default)s]")
+	parser.add_argument("--resume-download", dest="resumedl", default=True, type=str2bool, help="resume instead of restarting when downloading if local file already exists [default: %(default)s]")
 	parser.add_argument("--include-regex", dest="incregex", default='', help="regular expression of files to include. if not specified (default), everything is included. for download, the regex applies to the remote files; for upload, the regex applies to the local files. to exclude files, think about your regex, some tips here: https://stackoverflow.com/questions/406230/regular-expression-to-match-string-not-containing-a-word [default: %(default)s]")
 	parser.add_argument("--on-dup", dest="ondup", default='overwrite', help="what to do when the same file / folder exists in the destination: 'overwrite', 'skip', 'prompt' [default: %(default)s]")
 	parser.add_argument("--no-symlink", dest="followlink", action="store_false", help="DON'T follow symbol links when uploading / syncing up")
@@ -4333,7 +4333,7 @@ def getparser():
 	parser.add_argument(CaCertsOption, dest="cacerts", help="Specify the path for CA Bundle [default: %(default)s]")
 	parser.add_argument("--mirror", dest="mirror", default=None, help="Specify the PCS mirror (e.g. bj.baidupcs.com. Open 'https://pcs.baidu.com/rest/2.0/pcs/manage?method=listhost' to get the list) to use. [default: " + PcsDomain + "]")
 	parser.add_argument("--rapid-upload-only", dest="rapiduploadonly", action="store_true", help="only upload large files that can be rapidly uploaded")
-	parser.add_argument("--resume-download-revert-back", dest="resumedl_revertcount", default=1, metavar='RCOUNT', help="Revert back at least %(metavar)s download chunk(s) and align to chunk boundary when resuming the download. A negative value means NO reverts. [default: %(default)s]")
+	parser.add_argument("--resume-download-revert-back", dest="resumedl_revertcount", default=1, type=int, metavar='RCOUNT', help="Revert back at least %(metavar)s download chunk(s) and align to chunk boundary when resuming the download. A negative value means NO reverts. [default: %(default)s]")
 
 	# support aria2c
 	parser.add_argument("--downloader", dest="downloader", default="", help="downloader to use (use python if not specified). valid values: {} [default: %(default)s]".format(Downloaders))
@@ -4343,7 +4343,7 @@ def getparser():
 	#parser.add_argument("--config-dir", dest="configdir", default=ConfigDir, help="specify the config path [default: %(default)s]")
 
 	# action
-	parser.add_argument(CleanOptionShort, CleanOptionLong, dest="clean", action="count", default=0, help="1: clean settings (remove the token file) 2: clean settings and hash cache [default: %(default)s]")
+	parser.add_argument(CleanOptionShort, CleanOptionLong, dest="clean", action="count", default=0, help="clean settings (remove the token file), -cc: clean settings and hash cache")
 
 	# the MAIN parameter - what command to perform
 	parser.add_argument("command", nargs='*', help = "operations (quota, list, etc)")
@@ -4422,9 +4422,7 @@ def main(argv=None): # IGNORE:C0111
 			parser.print_help()
 			return EArgument
 		elif args.command[0] in ByPy.__dict__: # dir(ByPy), dir(by)
-			timeout = None
-			if args.timeout:
-				timeout = float(args.timeout)
+			timeout = args.timeout or None
 
 			cached.usecache = not args.forcehash
 
@@ -4433,7 +4431,7 @@ def main(argv=None): # IGNORE:C0111
 			# I didn't use PanAPI here as I have never tried out those functions inside
 			by = ByPy(slice_size = slice_size, dl_chunk_size = chunk_size,
 					verify = args.verify,
-					retry = int(args.retry), timeout = timeout,
+					retry = args.retry, timeout = timeout,
 					quit_when_fail = args.quit,
 					resumedownload = args.resumedl,
 					incregex = args.incregex,
